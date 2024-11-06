@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooting Gallery Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: transparent; /* Transparent background */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            height: 100vh;
+            position: relative;
+        }
+        .target, .shooter, .ammo {
+            position: absolute;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+        .target {
+            top: 0;
+            z-index: 1; /* Ensure target is below the shooter and ammo */
+        }
+        .shooter {
+            bottom: 0;
+            z-index: 2; /* Ensure shooter is above the target */
+        }
+        .ammo {
+            z-index: 3; /* Ensure ammo is above the target and shooter */
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+            padding: 10px;
+            display: none;
+        }
+        .toggle-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            z-index: 101;
+            background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+            padding: 10px;
+            cursor: pointer;
+        }
+        @keyframes flash {
+            0% { background-color: red; }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div id="target" class="target" style="width: 50px; height: 50px;"></div>
+    <div id="shooter" class="shooter" style="width: 50px; height: 50px;"></div>
+    <div class="controls">
+        <label>Upload Target Image: <input type="file" id="target-upload" accept="image/*"></label><br>
+        <label>Upload Shooter Image: <input type="file" id="shooter-upload" accept="image/*"></label><br>
+        <label>Upload Ammo Image: <input type="file" id="ammo-upload" accept="image/*"></label><br>
+        <label>Ammo Speed (ms): <input type="number" id="ammo-speed" value="500"></label><br>
+        <label>Target Move Speed (ms): <input type="number" id="target-speed" value="2000"></label><br>
+        <label>Shooter Move Speed (ms): <input type="number" id="shooter-speed" value="3000"></label><br>
+        <label>Target Size: <input type="number" id="target-size" value="50"></label><br>
+        <label>Shooter Size: <input type="number" id="shooter-size" value="50"></label><br>
+        <label>Ammo Size: <input type="number" id="ammo-size" value="50"></label><br>
+    </div>
+    <div class="toggle-controls">Show/Hide Controls</div>
+    <script>
+        const target = document.getElementById('target');
+        const shooter = document.getElementById('shooter');
+        const targetUpload = document.getElementById('target-upload');
+        const shooterUpload = document.getElementById('shooter-upload');
+        const ammoUpload = document.getElementById('ammo-upload');
+        const ammoSpeedInput = document.getElementById('ammo-speed');
+        const targetSpeedInput = document.getElementById('target-speed');
+        const shooterSpeedInput = document.getElementById('shooter-speed');
+        const targetSizeInput = document.getElementById('target-size');
+        const shooterSizeInput = document.getElementById('shooter-size');
+        const ammoSizeInput = document.getElementById('ammo-size');
+        const controls = document.querySelector('.controls');
+        const toggleControlsButton = document.querySelector('.toggle-controls');
+        let ammoImage = '';
+
+        function moveElement(element, startX, endX, duration) {
+            let start = null;
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const x = startX + (endX - startX) * (progress / duration);
+                element.style.left = `${Math.min(Math.max(x, 0), window.innerWidth - element.offsetWidth)}px`; // Ensure within bounds
+                if (progress < duration) {
+                    requestAnimationFrame(step);
+                } else {
+                    requestAnimationFrame(() => moveElement(element, endX, startX, duration));
+                }
+            }
+            requestAnimationFrame(step);
+        }
+
+        function startMovement() {
+            const targetSpeed = parseInt(targetSpeedInput.value, 10);
+            const shooterSpeed = parseInt(shooterSpeedInput.value, 10);
+            const targetSize = parseInt(targetSizeInput.value, 10);
+            const shooterSize = parseInt(shooterSizeInput.value, 10);
+
+            // Update sizes
+            target.style.width = `${targetSize}px`;
+            target.style.height = `${targetSize}px`;
+            shooter.style.width = `${shooterSize}px`;
+            shooter.style.height = `${shooterSize}px`;
+
+            // Restart movement with new speed
+            moveElement(target, 0, window.innerWidth - target.offsetWidth, targetSpeed);
+            moveElement(shooter, 0, window.innerWidth - shooter.offsetWidth, shooterSpeed);
+        }
+
+        startMovement(); // Initial call to start movement
+
+        function shoot() {
+            const ammoElement = document.createElement('div');
+            ammoElement.className = 'ammo';
+            ammoElement.style.left = `${shooter.offsetLeft + shooter.offsetWidth / 2 - ammoSizeInput.value / 2}px`;
+            ammoElement.style.bottom = `50px`;  // Start above the shooter
+            ammoElement.style.width = `${ammoSizeInput.value}px`;
+            ammoElement.style.height = `${ammoSizeInput.value}px`;
+            ammoElement.style.backgroundImage = `url(${ammoImage})`;
+            ammoElement.style.backgroundColor = 'transparent';
+            document.body.appendChild(ammoElement);
+
+            let start = null;
+            const duration = parseInt(ammoSpeedInput.value, 10);  // Get the ammo speed from input
+            function animateAmmo(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const distance = (window.innerHeight - 150) * (progress / duration);
+                ammoElement.style.bottom = `${Math.min(50 + distance, window.innerHeight - ammoSizeInput.value - 50)}px`; // Ensure within bounds
+                if (progress < duration) {
+                    requestAnimationFrame(animateAmmo);
+                } else {
+                    // Check for hit
+                    if (Math.abs(shooter.offsetLeft - target.offsetLeft) < target.offsetWidth) {
+                        target.style.animation = 'flash 0.2s';
+                        setTimeout(() => {
+                            target.style.animation = '';
+                        }, 200);
+                    }
+                    ammoElement.remove();
+                }
+            }
+            requestAnimationFrame(animateAmmo);
+        }
+
+        document.body.addEventListener('click', shoot);
+
+        targetUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    target.style.backgroundImage = `url(${e.target.result})`;
+                    target.style.backgroundColor = 'transparent';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        shooterUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    shooter.style.backgroundImage = `url(${e.target.result})`;
+                    shooter.style.backgroundColor = 'transparent';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        ammoUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    ammoImage = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        targetSizeInput.addEventListener('change', () => {
+            startMovement(); // Restart movement when target size changes
+        });
+
+        shooterSizeInput.addEventListener('change', () => {
+            startMovement(); // Restart movement when shooter size changes
+        });
+
+        ammoSizeInput.addEventListener('change', () => {
+            // No immediate effect needed as ammo size is set during shooting
+        });
+
+        toggleControlsButton.addEventListener('click', () => {
+            controls.style.display = controls.style.display === 'none' ? 'block' : 'none';
+        });
+
+        function connectToTwitch() {
+            const token = 'YOUR_TWITCH_AUTH_TOKEN'; // Replace with your Twitch OAuth token
+            const userId = 'YOUR_TWITCH_USER_ID'; // Replace with your Twitch user ID
+
+            const pubsubURL = `wss://pubsub-edge.twitch.tv`;
+
+            const socket = new WebSocket(pubsubURL);
+
+            socket.onopen = () => {
+                console.log('Connected to Twitch PubSub');
+                const message = {
+                    type: 'LISTEN',
+                    nonce: 'randomNonce',
+                    data: {
+                        topics: [`channel-points-channel-v1.${userId}`],
+                        auth_token: token
+                    }
+                };
+                socket.send(JSON.stringify(message));
+            };
+
+            socket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'MESSAGE' && message.data.topic.includes('channel-points')) {
+                    const rewardData = JSON.parse(message.data.message);
+                    if (rewardData.type === 'reward-redeemed') {
+                        shoot();
+                    }
+                }
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error: ', error);
+            };
+
+            socket.onclose = () => {
+                console.log('Disconnected from Twitch PubSub');
+                setTimeout(connectToTwitch, 10000); // Attempt to reconnect after 10 seconds
+            };
+        }
+
+        connectToTwitch();
+    </script>
+</body>
+</html>
