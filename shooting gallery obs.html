@@ -3,255 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shooting Gallery Game</title>
+    <title>Twitch Shooting Gallery</title>
+    <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: transparent; /* Transparent background */
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            height: 100vh;
-            position: relative;
-        }
-        .target, .shooter, .ammo {
-            position: absolute;
-            background-size: cover;
-            background-repeat: no-repeat;
-        }
-        .target {
-            top: 0;
-            z-index: 1; /* Ensure target is below the shooter and ammo */
-        }
-        .shooter {
-            bottom: 0;
-            z-index: 2; /* Ensure shooter is above the target */
-        }
-        .ammo {
-            z-index: 3; /* Ensure ammo is above the target and shooter */
-        }
-        .controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: white;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
-            padding: 10px;
-            display: none;
-        }
-        .toggle-controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            z-index: 101;
-            background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
-            padding: 10px;
-            cursor: pointer;
-        }
-        @keyframes flash {
-            0% { background-color: red; }
-            100% { background-color: transparent; }
-        }
+        body { margin: 0; overflow: hidden; background-color: transparent; height: 100vh; position: relative; font-family: sans-serif; }
+        .target, .shooter, .ammo { position: absolute; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        .target { top: 120px; background-color: red; border-radius: 50%; }
+        .shooter { bottom: 20px; background-color: blue; }
+        .ammo { background-color: yellow; border-radius: 5px; }
+        .controls { position: absolute; top: 50px; left: 10px; color: white; background: rgba(0, 0, 0, 0.9); padding: 15px; display: none; border-radius: 8px; width: 280px; z-index: 100; font-size: 13px; max-height: 90vh; overflow-y: auto; }
+        .toggle-controls { position: absolute; top: 10px; left: 10px; color: white; background: #333; padding: 5px 15px; cursor: pointer; border-radius: 5px; z-index: 101; }
+        label { display: block; margin-top: 8px; }
+        input { width: 100%; margin-bottom: 5px; box-sizing: border-box; }
+        hr { border: 0; border-top: 1px solid #444; margin: 10px 0; }
+        @keyframes hit-shake { 0% { transform: scale(1); } 50% { transform: scale(1.2) rotate(5deg); filter: brightness(2); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
-    <div id="target" class="target" style="width: 50px; height: 50px;"></div>
-    <div id="shooter" class="shooter" style="width: 50px; height: 50px;"></div>
-    <div class="controls">
-        <label>Upload Target Image: <input type="file" id="target-upload" accept="image/*"></label><br>
-        <label>Upload Shooter Image: <input type="file" id="shooter-upload" accept="image/*"></label><br>
-        <label>Upload Ammo Image: <input type="file" id="ammo-upload" accept="image/*"></label><br>
-        <label>Ammo Speed (ms): <input type="number" id="ammo-speed" value="500"></label><br>
-        <label>Target Move Speed (ms): <input type="number" id="target-speed" value="2000"></label><br>
-        <label>Shooter Move Speed (ms): <input type="number" id="shooter-speed" value="3000"></label><br>
-        <label>Target Size: <input type="number" id="target-size" value="50"></label><br>
-        <label>Shooter Size: <input type="number" id="shooter-size" value="50"></label><br>
-        <label>Ammo Size: <input type="number" id="ammo-size" value="50"></label><br>
+
+    <div id="hud" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 1000;">
+        <div style="background: rgba(0,0,0,0.8); color: #ff4444; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #ff4444;">TIME: <span id="time-left">60</span></div>
+        <div style="background: rgba(0,0,0,0.8); color: #00ffcc; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #00ffcc;">GOAL: <span id="current-hits">0</span> / <span id="goal-total">50</span></div>
     </div>
-    <div class="toggle-controls">Show/Hide Controls</div>
+
+    <div id="win-msg" style="display:none; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-size:60px; color:gold; z-index:2000; font-weight:bold; text-shadow: 3px 3px #000; text-align:center;">YOU WON!</div>
+    <div id="game-over-msg" style="display:none; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-size:60px; color:red; z-index:2000; font-weight:bold; text-shadow: 3px 3px #000; text-align:center;">GAME OVER</div>
+
+    <div id="target" class="target"></div>
+    <div id="shooter" class="shooter"></div>
+    <div class="toggle-controls">Settings</div>
+
+    <div class="controls">
+        <strong>1. Twitch Connection</strong>
+        <input type="text" id="channel-input" placeholder="Twitch Name">
+        <button id="connect-btn">Connect</button>
+        <p id="status" style="margin: 5px 0;">Status: Offline</p>
+        <hr>
+        <strong>2. Game Rules</strong>
+        <label>Hit Goal: <input type="number" id="input-goal" value="50"></label>
+        <label>Time (sec): <input type="number" id="input-time" value="60"></label>
+        <label>Emote Name: <input type="text" id="specific-emote" placeholder="e.g. LUL"></label>
+        <label style="display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="emote-trigger-check" style="width:auto;"> Any Emote Shoots?</label>
+        <button id="start-btn" style="background: #28a745; color: white; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px; padding: 10px; border: none; border-radius: 4px;">START CHALLENGE</button>
+        <button id="reset-btn" style="background: #dc3545; color: white; width: 100%; cursor: pointer; font-weight: bold; margin-top: 5px; padding: 10px; border: none; border-radius: 4px;">RESET GAME</button>
+        <hr>
+        <strong>3. Visuals & Speed</strong>
+        <label>Target Img: <input type="file" id="target-upload" accept="image/*"></label>
+        <label>Hero Img: <input type="file" id="shooter-upload" accept="image/*"></label>
+        <label>Ammo Img: <input type="file" id="ammo-upload" accept="image/*"></label>
+        <label>Ammo Speed (ms): <input type="number" id="ammo-speed-input" value="600"></label>
+        <label>Target Speed (ms): <input type="number" id="target-speed-input" value="3000"></label>
+        <label>Hero Speed (ms): <input type="number" id="shooter-speed-input" value="4000"></label>
+        <label>Target Size: <input type="number" id="target-size-input" value="80"></label>
+        <label>Hero Size: <input type="number" id="shooter-size-input" value="70"></label>
+        <label>Ammo Size: <input type="number" id="ammo-size-input" value="40"></label>
+    </div>
+
     <script>
-        const target = document.getElementById('target');
-        const shooter = document.getElementById('shooter');
-        const targetUpload = document.getElementById('target-upload');
-        const shooterUpload = document.getElementById('shooter-upload');
-        const ammoUpload = document.getElementById('ammo-upload');
-        const ammoSpeedInput = document.getElementById('ammo-speed');
-        const targetSpeedInput = document.getElementById('target-speed');
-        const shooterSpeedInput = document.getElementById('shooter-speed');
-        const targetSizeInput = document.getElementById('target-size');
-        const shooterSizeInput = document.getElementById('shooter-size');
-        const ammoSizeInput = document.getElementById('ammo-size');
-        const controls = document.querySelector('.controls');
-        const toggleControlsButton = document.querySelector('.toggle-controls');
-        let ammoImage = '';
-
-        function moveElement(element, startX, endX, duration) {
-            let start = null;
-            function step(timestamp) {
-                if (!start) start = timestamp;
-                const progress = timestamp - start;
-                const x = startX + (endX - startX) * (progress / duration);
-                element.style.left = `${Math.min(Math.max(x, 0), window.innerWidth - element.offsetWidth)}px`; // Ensure within bounds
-                if (progress < duration) {
-                    requestAnimationFrame(step);
-                } else {
-                    requestAnimationFrame(() => moveElement(element, endX, startX, duration));
-                }
-            }
-            requestAnimationFrame(step);
+    let hits = 0; let gameActive = false; let ammoImageBase64 = ''; let targetAnim, shooterAnim;
+    const target = document.getElementById('target'); const shooter = document.getElementById('shooter');
+    
+    function moveElement(element, type, duration) {
+        let start = null; 
+        function step(timestamp) { 
+            if (!start) start = timestamp; 
+            const progress = (timestamp - start) / duration; 
+            const width = window.innerWidth - element.offsetWidth; 
+            const x = (Math.sin(progress * Math.PI * 2 - Math.PI / 2) + 1) / 2 * width; 
+            element.style.left = x + 'px'; 
+            if (type === 'target') targetAnim = requestAnimationFrame(step); 
+            else shooterAnim = requestAnimationFrame(step); 
         }
+        if (type === 'target') targetAnim = requestAnimationFrame(step); 
+        else shooterAnim = requestAnimationFrame(step);
+    }
 
-        function startMovement() {
-            const targetSpeed = parseInt(targetSpeedInput.value, 10);
-            const shooterSpeed = parseInt(shooterSpeedInput.value, 10);
-            const targetSize = parseInt(targetSizeInput.value, 10);
-            const shooterSize = parseInt(shooterSizeInput.value, 10);
+    function refreshSettings() {
+        cancelAnimationFrame(targetAnim); cancelAnimationFrame(shooterAnim);
+        target.style.width = target.style.height = document.getElementById('target-size-input').value + 'px';
+        shooter.style.width = shooter.style.height = document.getElementById('shooter-size-input').value + 'px';
+        moveElement(target, 'target', parseInt(document.getElementById('target-speed-input').value));
+        moveElement(shooter, 'shooter', parseInt(document.getElementById('shooter-speed-input').value));
+    }
 
-            // Update sizes
-            target.style.width = `${targetSize}px`;
-            target.style.height = `${targetSize}px`;
-            shooter.style.width = `${shooterSize}px`;
-            shooter.style.height = `${shooterSize}px`;
+    document.getElementById('start-btn').onclick = () => {
+        hits = 0; gameActive = true; 
+        let timeLeft = parseInt(document.getElementById('input-time').value);
+        document.getElementById('current-hits').innerText = "0"; 
+        document.getElementById('goal-total').innerText = document.getElementById('input-goal').value;
+        document.getElementById('time-left').innerText = timeLeft; 
+        document.getElementById('win-msg').style.display = 'none'; 
+        document.getElementById('game-over-msg').style.display = 'none';
+        const timer = setInterval(() => { 
+            if (!gameActive) { clearInterval(timer); return; } 
+            timeLeft--; 
+            document.getElementById('time-left').innerText = timeLeft; 
+            if (timeLeft <= 0) { gameActive = false; clearInterval(timer); document.getElementById('game-over-msg').style.display = 'block'; } 
+        }, 1000);
+    };
 
-            // Restart movement with new speed
-            moveElement(target, 0, window.innerWidth - target.offsetWidth, targetSpeed);
-            moveElement(shooter, 0, window.innerWidth - shooter.offsetWidth, shooterSpeed);
+    document.getElementById('reset-btn').onclick = () => {
+        gameActive = false;
+        hits = 0;
+        document.getElementById('current-hits').innerText = "0";
+        document.getElementById('time-left').innerText = document.getElementById('input-time').value;
+        document.getElementById('win-msg').style.display = 'none';
+        document.getElementById('game-over-msg').style.display = 'none';
+        document.querySelectorAll('.ammo').forEach(a => a.remove());
+    };
+
+    function shoot(user, emoteUrl) {
+        if (!gameActive) return;
+        const ammoSize = document.getElementById('ammo-size-input').value;
+        const ammo = document.createElement('div'); ammo.className = 'ammo'; 
+        ammo.style.width = ammo.style.height = ammoSize + 'px';
+        ammo.style.left = (shooter.offsetLeft + (shooter.offsetWidth / 2) - (ammoSize / 2)) + 'px'; 
+        ammo.style.bottom = '80px';
+        if (emoteUrl) { ammo.style.backgroundImage = `url(${emoteUrl})`; ammo.style.backgroundColor = 'transparent'; } 
+        else if (ammoImageBase64) { ammo.style.backgroundImage = `url(${ammoImageBase64})`; ammo.style.backgroundColor = 'transparent'; }
+        document.body.appendChild(ammo); 
+        let start = null; 
+        const endBottom = window.innerHeight - target.offsetTop - (target.offsetHeight / 2);
+        function animate(timestamp) { 
+            if (!start) start = timestamp; 
+            const progress = Math.min((timestamp - start) / parseInt(document.getElementById('ammo-speed-input').value), 1); 
+            ammo.style.bottom = (80 + (endBottom * progress)) + 'px'; 
+            if (progress < 1) requestAnimationFrame(animate); 
+            else { 
+                const aR = ammo.getBoundingClientRect(); const tR = target.getBoundingClientRect(); 
+                if (!(aR.right < tR.left || aR.left > tR.right)) { 
+                    hits++; document.getElementById('current-hits').innerText = hits; 
+                    target.style.animation = 'hit-shake 0.2s ease'; 
+                    setTimeout(() => target.style.animation = '', 200); 
+                    if (hits >= parseInt(document.getElementById('goal-total').innerText)) { gameActive = false; document.getElementById('win-msg').style.display = 'block'; } 
+                } 
+                ammo.remove(); 
+            } 
         }
+        requestAnimationFrame(animate);
+    }
 
-        startMovement(); // Initial call to start movement
-
-        function shoot() {
-            const ammoElement = document.createElement('div');
-            ammoElement.className = 'ammo';
-            ammoElement.style.left = `${shooter.offsetLeft + shooter.offsetWidth / 2 - ammoSizeInput.value / 2}px`;
-            ammoElement.style.bottom = `50px`;  // Start above the shooter
-            ammoElement.style.width = `${ammoSizeInput.value}px`;
-            ammoElement.style.height = `${ammoSizeInput.value}px`;
-            ammoElement.style.backgroundImage = `url(${ammoImage})`;
-            ammoElement.style.backgroundColor = 'transparent';
-            document.body.appendChild(ammoElement);
-
-            let start = null;
-            const duration = parseInt(ammoSpeedInput.value, 10);  // Get the ammo speed from input
-            function animateAmmo(timestamp) {
-                if (!start) start = timestamp;
-                const progress = timestamp - start;
-                const distance = (window.innerHeight - 150) * (progress / duration);
-                ammoElement.style.bottom = `${Math.min(50 + distance, window.innerHeight - ammoSizeInput.value - 50)}px`; // Ensure within bounds
-                if (progress < duration) {
-                    requestAnimationFrame(animateAmmo);
-                } else {
-                    // Check for hit
-                    if (Math.abs(shooter.offsetLeft - target.offsetLeft) < target.offsetWidth) {
-                        target.style.animation = 'flash 0.2s';
-                        setTimeout(() => {
-                            target.style.animation = '';
-                        }, 200);
-                    }
-                    ammoElement.remove();
-                }
+    document.getElementById('connect-btn').onclick = () => {
+        ComfyJS.onCommand = (u, c, m, f, e) => { if (c === "shoot" && gameActive) shoot(); };
+        ComfyJS.onChat = (u, m, f, s, e) => {
+            if (m.startsWith("!")) return;
+            if (!gameActive) return;
+            const anyEmote = document.getElementById('emote-trigger-check').checked;
+            const targetEmote = document.getElementById('specific-emote').value;
+            if (e.emotes) {
+                const emoteId = Object.keys(e.emotes)[0];
+                const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/3.0`;
+                if (anyEmote || (targetEmote && m.includes(targetEmote))) shoot(u, emoteUrl);
             }
-            requestAnimationFrame(animateAmmo);
-        }
+        };
+        ComfyJS.Init(document.getElementById('channel-input').value || "The_Lightling");
+        document.getElementById('status').innerText = "Connected!";
+    };
 
-        document.body.addEventListener('click', shoot);
-
-        targetUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    target.style.backgroundImage = `url(${e.target.result})`;
-                    target.style.backgroundColor = 'transparent';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        shooterUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    shooter.style.backgroundImage = `url(${e.target.result})`;
-                    shooter.style.backgroundColor = 'transparent';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        ammoUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    ammoImage = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        targetSizeInput.addEventListener('change', () => {
-            startMovement(); // Restart movement when target size changes
-        });
-
-        shooterSizeInput.addEventListener('change', () => {
-            startMovement(); // Restart movement when shooter size changes
-        });
-
-        ammoSizeInput.addEventListener('change', () => {
-            // No immediate effect needed as ammo size is set during shooting
-        });
-
-        toggleControlsButton.addEventListener('click', () => {
-            controls.style.display = controls.style.display === 'none' ? 'block' : 'none';
-        });
-
-        function connectToTwitch() {
-            const token = 'YOUR_TWITCH_AUTH_TOKEN'; // Replace with your Twitch OAuth token
-            const userId = 'YOUR_TWITCH_USER_ID'; // Replace with your Twitch user ID
-
-            const pubsubURL = `wss://pubsub-edge.twitch.tv`;
-
-            const socket = new WebSocket(pubsubURL);
-
-            socket.onopen = () => {
-                console.log('Connected to Twitch PubSub');
-                const message = {
-                    type: 'LISTEN',
-                    nonce: 'randomNonce',
-                    data: {
-                        topics: [`channel-points-channel-v1.${userId}`],
-                        auth_token: token
-                    }
-                };
-                socket.send(JSON.stringify(message));
-            };
-
-            socket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                if (message.type === 'MESSAGE' && message.data.topic.includes('channel-points')) {
-                    const rewardData = JSON.parse(message.data.message);
-                    if (rewardData.type === 'reward-redeemed') {
-                        shoot();
-                    }
-                }
-            };
-
-            socket.onerror = (error) => {
-                console.error('WebSocket error: ', error);
-            };
-
-            socket.onclose = () => {
-                console.log('Disconnected from Twitch PubSub');
-                setTimeout(connectToTwitch, 10000); // Attempt to reconnect after 10 seconds
-            };
-        }
-
-        connectToTwitch();
-    </script>
+    document.getElementById('target-upload').onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { target.style.backgroundImage = `url(${ev.target.result})`; target.style.backgroundColor="transparent"; }; r.readAsDataURL(e.target.files[0]); };
+    document.getElementById('shooter-upload').onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { shooter.style.backgroundImage = `url(${ev.target.result})`; shooter.style.backgroundColor="transparent"; }; r.readAsDataURL(e.target.files[0]); };
+    document.getElementById('ammo-upload').onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { ammoImageBase64 = ev.target.result; }; r.readAsDataURL(e.target.files[0]); };
+    document.querySelector('.toggle-controls').onclick = () => { const c = document.querySelector('.controls'); c.style.display = c.style.display === 'block' ? 'none' : 'block'; };
+    
+    document.querySelectorAll('input[type="number"]').forEach(i => {
+        i.oninput = () => {
+            refreshSettings();
+            if (i.id === 'input-time') document.getElementById('time-left').innerText = i.value;
+            if (i.id === 'input-goal') document.getElementById('goal-total').innerText = i.value;
+        };
+    });
+    refreshSettings();
+</script>
 </body>
 </html>
