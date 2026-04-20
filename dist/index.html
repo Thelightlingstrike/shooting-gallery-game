@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>shooting gallert obs</title>
+    <link rel="stylesheet" href="./style.css">
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Shooting Gallery</title>
+    <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
+</head>
+<body>
+
+    <div id="hud" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 1000; font-family: sans-serif;">
+        <div style="background: rgba(0,0,0,0.8); color: #ff4444; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #ff4444;">
+            TIME: <span id="time-left">60</span>
+        </div>
+        <div style="background: rgba(0,0,0,0.8); color: #00ffcc; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #00ffcc;">
+            GOAL: <span id="current-hits">0</span> / <span id="goal-total">50</span>
+        </div>
+    </div>
+
+    <div id="win-msg" style="display:none; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-size:60px; color:gold; z-index:2000; text-align:center; font-weight:bold; text-shadow: 3px 3px #000; font-family: sans-serif;">YOU WON!</div>
+    <div id="game-over-msg" style="display:none; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-size:60px; color:red; z-index:2000; text-align:center; font-weight:bold; text-shadow: 3px 3px #000; font-family: sans-serif;">GAME OVER</div>
+
+    <div id="target" class="target"></div>
+    <div id="shooter" class="shooter"></div>
+
+    <div class="toggle-controls">Settings</div>
+
+    <div class="controls">
+        <strong>1. Twitch Connection</strong>
+        <input type="text" id="channel-input" placeholder="Twitch Name">
+        <button id="connect-btn">Connect</button>
+        <p id="status">Status: Offline</p>
+        
+        <hr>
+        <strong>2. Game Rules</strong>
+        <label>Hit Goal: <input type="number" id="input-goal" value="50"></label>
+        <label>Time (sec): <input type="number" id="input-time" value="60"></label>
+        
+        <div style="margin: 10px 0; background: #222; padding: 5px; border-radius: 4px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="emote-trigger-check" style="width: auto;"> 
+                Any Emote Shoots?
+            </label>
+        </div>
+
+        <button id="start-btn" style="background: #28a745; color: white; width: 100%; cursor: pointer; font-weight: bold; padding: 8px; border: none;">START CHALLENGE</button>
+        
+        <hr>
+        <strong>3. Visuals & Speed</strong>
+        <label>Target Img: <input type="file" id="target-upload" accept="image/*"></label>
+        <label>Hero Img: <input type="file" id="shooter-upload" accept="image/*"></label>
+        <label>Ammo Img: <input type="file" id="ammo-upload" accept="image/*"></label>
+        <br>
+        <label>Ammo Speed (ms): <input type="number" id="ammo-speed-input" value="600"></label>
+        <label>Target Speed (ms): <input type="number" id="target-speed-input" value="3000"></label>
+        <label>Hero Speed (ms): <input type="number" id="shooter-speed-input" value="4000"></label>
+        <br>
+        <label>Target Size: <input type="number" id="target-size-input" value="80"></label>
+        <label>Hero Size: <input type="number" id="shooter-size-input" value="70"></label>
+        <label>Ammo Size: <input type="number" id="ammo-size-input" value="40"></label>
+    </div>
+</body>
+</html>
+    <script src='https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js'></script><script  src="./script.js"></script>
+
+  </body>
+  
+</html>
