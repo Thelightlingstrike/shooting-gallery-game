@@ -31,21 +31,46 @@ function refreshSettings() {
 }
 
 document.getElementById('start-btn').onclick = () => {
-    hits = 0;
-    gameActive = true;
-    let timeLeft = parseInt(document.getElementById('input-time').value) || 60;
-    document.getElementById('current-hits').innerText = "0";
-    document.getElementById('goal-total').innerText = document.getElementById('input-goal').value;
-    document.getElementById('time-left').innerText = timeLeft;
-    document.getElementById('win-msg').style.display = 'none';
-    document.getElementById('game-over-msg').style.display = 'none';
+  hits = 0;
+  gameActive = true;
+  let timeLeft = parseInt(document.getElementById('input-time').value) || 60;
+  
+  document.getElementById('current-hits').innerText = "0";
+  document.getElementById('goal-total').innerText = document.getElementById('input-goal').value;
+  document.getElementById('time-left').innerText = timeLeft;
+  document.getElementById('win-msg').style.display = 'none';
+  document.getElementById('game-over-msg').style.display = 'none';
 
-    const timerInterval = setInterval(() => {
-        if (!gameActive) { clearInterval(timerInterval); return; }
-        timeLeft--;
-        document.getElementById('time-left').innerText = timeLeft;
-        if (timeLeft <= 0) { gameActive = false; document.getElementById('game-over-msg').style.display = 'block'; }
-    }, 1000);
+  // 1. Clear any active timer before starting a new one
+  clearInterval(window.timerInterval);
+
+  // 2. Start the fresh countdown timer
+  window.timerInterval = setInterval(() => {
+    if (!gameActive) { 
+      clearInterval(window.timerInterval); 
+      return; 
+    }
+    timeLeft--;
+    document.getElementById('time-left').innerText = timeLeft;
+    
+    if (timeLeft <= 0) {
+      gameActive = false;
+      document.getElementById('game-over-msg').style.display = 'block';
+    }
+  }, 1000);
+};
+
+document.getElementById('reset-btn').onclick = () => {
+  gameActive = false;
+  clearInterval(window.timerInterval);
+  hits = 0;
+  document.getElementById('current-hits').innerText = "0";
+  
+  let customTime = parseInt(document.getElementById('input-time').value) || 60;
+  document.getElementById('time-left').innerText = customTime;
+  
+  document.getElementById('win-msg').style.display = 'none';
+  document.getElementById('game-over-msg').style.display = 'none';
 };
 
 function shoot(user, emoteUrl) {
@@ -133,3 +158,11 @@ document.querySelector('.toggle-controls').onclick = () => {
 
 document.querySelectorAll('input[type="number"]').forEach(i => i.onchange = refreshSettings);
 refreshSettings();
+// Update the screen numbers immediately when someone leaves the box or hits enter
+document.getElementById('input-time').addEventListener('change', () => {
+    document.getElementById('time-left').innerText = document.getElementById('input-time').value || 60;
+});
+
+document.getElementById('input-goal').addEventListener('change', () => {
+    document.getElementById('goal-total').innerText = document.getElementById('input-goal').value || 50;
+});
